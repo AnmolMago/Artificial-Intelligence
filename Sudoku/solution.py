@@ -22,7 +22,8 @@ ROWS_STR = "ABCDEFGHI"
 CELLS = cross(ROWS_STR, COLS_STR)
 ROWS = [ cross(r, COLS_STR) for r in ROWS_STR ]
 COLS = [ cross(ROWS_STR, c) for c in COLS_STR ]
-SECTIONS = [ cross(row_sec, col_sec) for row_sec in ("ABC", "DEF", "GHI") for col_sec in ("123", "456", "789") ]
+SECTIONS = [ cross(row_sec, col_sec) for row_sec in ("ABC", "DEF", "GHI")
+                for col_sec in ("123", "456", "789") ]
 DIAGONALS = [ zipcross(ROWS_STR, cols) for cols in [COLS_STR, COLS_STR[::-1] ]]
 
 UNITLIST = ROWS + COLS + DIAGONALS + SECTIONS
@@ -47,11 +48,9 @@ def naked_twins(values):
     Returns:
         the values dictionary with the naked twins eliminated from peers.
     """
-    
-    # Find all instances of naked twins
-    # Eliminate the naked twins as possibilities for their peers
-    
+
     for unit in UNITLIST:
+        # Find all instances of naked twins
         len_two_vals = defaultdict(list)
         for cell in unit:
             val = values[cell]
@@ -59,6 +58,8 @@ def naked_twins(values):
                 len_two_vals[val].append(cell)
 
         twins_list = [ (val,cells) for val, cells in len_two_vals.items() if len(cells) == 2 ]
+
+        # Eliminate the naked twins as possibilities for their peers
         for val, twins in twins_list:
             for peer in [peer for peer in unit if peer not in twins]:
                 assign_value(values, peer, values[peer].replace(val[0], ''))
@@ -102,6 +103,13 @@ def display(values):
     print
 
 def eliminate(values):
+    """
+    Eliminate values of solved cells from their peers.
+    Args:
+        values(dict): a dictionary of the form {'cell_name': '123456789', ...}
+    Returns:
+        the values dictionary with impossible values eliminated 
+    """
     solved_cells = [ cell for cell, val in values.items() if len(val) == 1 ]
     for cell in solved_cells:
         for peer in PEERS[cell]:
@@ -110,6 +118,13 @@ def eliminate(values):
     return values
 
 def only_choice(values):
+    """
+    Assign values when there is only one possible cell where they may go.
+    Args:
+        values(dict): a dictionary of the form {'cell_name': '123456789', ...}
+    Returns:
+        the values dictionary with the new values assigned
+    """
     for unit in UNITLIST:
         for digit in '123456789':
             possible_cells = [ cell for cell in unit if digit in values[cell] ]
@@ -118,20 +133,34 @@ def only_choice(values):
     return values
 
 def reduce_puzzle(values):
-    solves_values_before = len([ cell for cell in values.keys() if len(values[cell]) == 1 ])
+    """
+    Iteratively eliminate values and assign only_choices until no more changes are detected.
+    Args:
+        values(dict): a dictionary of the form {'cell_name': '123456789', ...}
+    Returns:
+        the values dictionary with the new values assigned
+    """
+    solved_values_before = len([ cell for cell in values.keys() if len(values[cell]) == 1 ])
     stall = False #lobw
     while not stall:
         values = eliminate(values)
         values = only_choice(values)
-        solves_values_after = len([ cell for cell in values.keys() if len(values[cell]) == 1 ])
-        stall = (solves_values_before == solves_values_after)
-        solves_values_before = solves_values_after
+        solved_values_after = len([ cell for cell in values.keys() if len(values[cell]) == 1 ])
+        stall = (solved_values_before == solved_values_after)
+        solved_values_before = solved_values_after
         if any([ len(values[cell]) == 0 for cell in values.keys() ]):
             return False
     return values
 
 
 def search(values):
+    """
+    Implement Depth First Search to find a solution to the grid.
+    Args:
+        values(dict): a dictionary of the form {'cell_name': '123456789', ...}
+    Returns:
+        the values dictionary with the new values assigned
+    """
     values = reduce_puzzle(values) #iterate eliminate and only_choice
     if all(len(values[cell]) == 1 for cell in CELLS) or values is False:
         # solved or unsolvable(False)
