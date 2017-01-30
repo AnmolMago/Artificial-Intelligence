@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 def cross(A, B):
     "Cross product of elements in A and elements in B."
     return [ a + b for a in A for b in B ]
@@ -48,7 +50,21 @@ def naked_twins(values):
     
     # Find all instances of naked twins
     # Eliminate the naked twins as possibilities for their peers
-    pass
+    
+    for unit in UNITLIST:
+        len_two_vals = defaultdict(list)
+        for cell in unit:
+            val = values[cell]
+            if len(val) == 2:
+                len_two_vals[val].append(cell)
+
+        twins_list = [ (val,cells) for val, cells in len_two_vals.items() if len(cells) == 2 ]
+        for val, twins in twins_list:
+            for peer in [peer for peer in unit if peer not in twins]:
+                assign_value(values, peer, values[peer].replace(val[0], ''))
+                assign_value(values, peer, values[peer].replace(val[1], ''))
+                
+    return values
 
 def grid_values(grid_str):
     """
@@ -76,12 +92,14 @@ def display(values):
     """
     if values is False:
         print("Sudoku is unsolveable! (or code is broken)")
-    grid = []
+
+    width = 1+max(len(values[s]) for s in CELLS)
+    line = '+'.join(['-'*(width*3)]*3)
     for r in ROWS_STR:
-        column_values = []
-        for c in COLS_STR:
-            column_values.append(values[r+c])
-        print(column_values)
+        print(''.join(values[r+c].center(width)+('|' if c in '36' else '') for c in COLS_STR))
+        if r in 'CF':
+            print(line)
+    print
 
 def eliminate(values):
     solved_cells = [ cell for cell, val in values.items() if len(val) == 1 ]
