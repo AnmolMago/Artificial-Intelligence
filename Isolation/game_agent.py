@@ -8,6 +8,7 @@ relative strength using tournament.py and include the results in your report.
 """
 import random
 
+NO_LEGAL_MOVES_LEFT = (-1, -1)
 
 class Timeout(Exception):
     """Subclass base exception for code clarity."""
@@ -36,9 +37,55 @@ def custom_score(game, player):
     float
         The heuristic value of the current game state to the specified player.
     """
+    # ~70% of games won in tournament
+    # Return inf or -inf if the player has won/lost w/ least comparisions
+    win_or_lose = game.utility(player)
+    if win_or_lose != 0:
+        return win_or_lose
 
-    # TODO: finish this function!
-    raise NotImplementedError
+    opponent = game.get_opponent(player)
+    opponent_move_count = len(game.get_legal_moves(opponent))
+
+    # if more than 50% of the game has been played, we would rather search deeper than smarter
+    # (use less computation)
+    if game.move_count/float(game.width * game.height) > 0.5:
+        return -opponent_move_count
+
+    player_move_count = len(game.get_legal_moves(player))
+
+    return float(player_move_count - 2 * opponent_move_count)
+
+def _unused_heuristic_function_for_submission_1(game, player):
+    # ~59% of games won in tournament
+    # Return inf or -inf if the player has won/lost w/ least comparisions
+    win_or_lose = game.utility(player)
+    if win_or_lose != 0:
+        return win_or_lose
+
+    player_move_count = len(game.get_legal_moves(player))
+
+    # if more than 50% of the game has been played, we would rather search deeper than smarter
+    # (use less computation)
+    if game.move_count/float(game.width * game.height) > 0.5:
+        return player_move_count
+
+    opponent = game.get_opponent(player)
+    opponent_move_count = len(game.get_legal_moves(opponent))
+
+    return float(player_move_count - 2 * opponent_move_count)
+
+def _unused_heuristic_function_for_submission_2(game, player):
+    # ~53% of games won in tournament
+    # Return inf or -inf if the player has won/lost w/ least comparisions
+    win_or_lose = game.utility(player)
+    if win_or_lose != 0:
+        return win_or_lose
+
+    opponent = game.get_opponent(player)
+    player_move_count = len(game.get_legal_moves(player))
+    opponent_move_count = len(game.get_legal_moves(opponent))
+
+    return float(player_move_count - 2 * opponent_move_count)
 
 
 class CustomPlayer:
@@ -78,7 +125,8 @@ class CustomPlayer:
         self.score = score_fn
         self.method = method
         self.time_left = None
-        self.TIMER_THRESHOLD = timeout
+        self.TIMER_THRESHOLD = timeout * 1.5
+        self.use_minimax = (self.method == 'minimax')
 
     def get_move(self, game, legal_moves, time_left):
         """Search for the best move from the available legal moves and return a
@@ -118,25 +166,24 @@ class CustomPlayer:
 
         self.time_left = time_left
 
-        # TODO: finish this function!
+        if len(legal_moves) == 0:
+            return NO_LEGAL_MOVES_LEFT
 
-        # Perform any required initializations, including selecting an initial
-        # move from the game board (i.e., an opening book), or returning
-        # immediately if there are no legal moves
+        best_move = legal_moves[0]
+        search_method = self.minimax if self.use_minimax else self.alphabeta
+
+        if not self.iterative:
+            return search_method(game, self.search_depth)[1]
 
         try:
-            # The search method call (alpha beta or minimax) should happen in
-            # here in order to avoid timeout. The try/except block will
-            # automatically catch the exception raised by the search method
-            # when the timer gets close to expiring
-            pass
-
+            depth = 1
+            while self.time_left() > self.TIMER_THRESHOLD:
+                _, best_move = search_method(game, depth)
+                depth += 1
         except Timeout:
-            # Handle any actions required at timeout, if necessary
             pass
 
-        # Return the best move from the last completed search iteration
-        raise NotImplementedError
+        return best_move
 
     def minimax(self, game, depth, maximizing_player=True):
         """Implement the minimax search algorithm as described in the lectures.
@@ -172,8 +219,18 @@ class CustomPlayer:
         if self.time_left() < self.TIMER_THRESHOLD:
             raise Timeout()
 
-        # TODO: finish this function!
-        raise NotImplementedError
+        if depth == 0 or len(game.get_legal_moves()) == 0:
+            return self.score(game, self), ()
+
+        possible_moves = []
+        for move in game.get_legal_moves():
+            possible_game = game.forecast_move(move)
+            possible_score, _ = self.minimax(possible_game, depth-1, not maximizing_player)
+            possible_moves.append((float(possible_score), move))
+
+        if maximizing_player:
+            return max(possible_moves)
+        return min(possible_moves)
 
     def alphabeta(self, game, depth, alpha=float("-inf"), beta=float("inf"), maximizing_player=True):
         """Implement minimax search with alpha-beta pruning as described in the
@@ -216,5 +273,26 @@ class CustomPlayer:
         if self.time_left() < self.TIMER_THRESHOLD:
             raise Timeout()
 
-        # TODO: finish this function!
-        raise NotImplementedError
+        if depth == 0 or len(game.get_legal_moves()) == 0:
+            return self.score(game, self), ()
+
+        possible_moves = []
+        for move in game.get_legal_moves():
+            possible_game = game.forecast_move(move)
+            possible_score, _ = self.alphabeta(possible_game, depth-1, alpha, beta, not maximizing_player)
+            possible_moves.append((float(possible_score), move))
+
+            if (maximizing_player and possible_score >= beta) or\
+               (not maximizing_player and possible_score <= alpha):
+                return possible_score, move
+
+            if maximizing_player:
+                alpha = max(alpha, possible_score)
+            else:
+                beta = min(beta, possible_score)
+
+            
+        
+        if maximizing_player:
+            return max(possible_moves)
+        return min(possible_moves)
