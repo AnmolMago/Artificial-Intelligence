@@ -46,10 +46,10 @@ def custom_score(game, player):
     opponent = game.get_opponent(player)
     opponent_move_count = len(game.get_legal_moves(opponent))
 
-    # if more than 50% of the game has been played, we would rather search deeper than smarter
-    # (use less computation)
-    if game.move_count/float(game.width * game.height) > 0.5:
-        return -opponent_move_count
+    # if less than 50% of the game has been played, we use a less computationally expensive
+    # huristic function because the branching factor is larger on average
+    if game.move_count/float(game.width * game.height) < 0.5:
+        return -float(opponent_move_count)
 
     player_move_count = len(game.get_legal_moves(player))
 
@@ -64,10 +64,10 @@ def _unused_heuristic_function_for_submission_1(game, player):
 
     player_move_count = len(game.get_legal_moves(player))
 
-    # if more than 50% of the game has been played, we would rather search deeper than smarter
-    # (use less computation)
-    if game.move_count/float(game.width * game.height) > 0.5:
-        return player_move_count
+    # if less than 50% of the game has been played, we use a less computationally expensive
+    # huristic function because the branching factor is larger on average
+    if game.move_count/float(game.width * game.height) < 0.5:
+        return float(player_move_count)
 
     opponent = game.get_opponent(player)
     opponent_move_count = len(game.get_legal_moves(opponent))
@@ -125,7 +125,7 @@ class CustomPlayer:
         self.score = score_fn
         self.method = method
         self.time_left = None
-        self.TIMER_THRESHOLD = timeout * 1.5
+        self.TIMER_THRESHOLD = timeout
         self.use_minimax = (self.method == 'minimax')
 
     def get_move(self, game, legal_moves, time_left):
@@ -172,10 +172,10 @@ class CustomPlayer:
         best_move = legal_moves[0]
         search_method = self.minimax if self.use_minimax else self.alphabeta
 
-        if not self.iterative:
-            return search_method(game, self.search_depth)[1]
-
         try:
+            if not self.iterative:
+                return search_method(game, self.search_depth)[1]
+
             depth = 1
             while self.time_left() > self.TIMER_THRESHOLD:
                 _, best_move = search_method(game, depth)
