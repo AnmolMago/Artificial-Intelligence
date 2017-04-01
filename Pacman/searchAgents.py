@@ -346,7 +346,6 @@ def cornersHeuristic(state, problem):
     # return abs(a[0] - b[0])**2 + abs(a[1] - b[1])**2 ... inadmissable even though it reduces "Search nodes expanded" to 158
     return util.manhattanDistance(a, b) # Search nodes expanded: 1505
   corners = set(problem.corners) # These are the corner coordinates
-  walls = problem.walls # These are the walls of the maze, as a Grid (game.py)
   pos, visited_corners = state
   unvisited_corners = corners - visited_corners
   sum = 0
@@ -446,8 +445,17 @@ def foodHeuristic(state, problem):
   Subsequent calls to this heuristic can access problem.heuristicInfo['wallCount']
   """
   position, foodGrid = state
-  "*** YOUR CODE HERE ***"
-  return 0
+  def distance_between(a, b):
+    return util.manhattanDistance(a, b)
+  sum = 0
+  prev = position
+  uneaten = foodGrid.asList()
+  while uneaten:
+    distance, food = min([(distance_between(prev, food), food) for food in uneaten])
+    sum += distance
+    prev = food
+    uneaten.remove(food)
+  return sum
   
 class ClosestDotSearchAgent(SearchAgent):
   "Search for all food using a sequence of searches"
