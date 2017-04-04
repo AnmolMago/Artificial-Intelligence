@@ -2,3 +2,7 @@
 *.zip
 
 *.pyc
+
+search_output_*.txt
+
+Planning/~$uristic_analysis.docx
