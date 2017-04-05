@@ -189,14 +189,8 @@ class AirCargoProblem(Problem):
         conditions by ignoring the preconditions required for an action to be
         executed.
         '''
-        count = 0
-        current_state = node.state
-        knowledge_base = PropKB()
-        knowledge_base.tell(decode_state(current_state, self.state_map).pos_sentence())
-        for clause in self.goal:
-            if clause not in knowledge_base.clauses:
-                count += 1
-        return count
+        queries = [q for q in self.goal if q not in decode_state(node.state, self.state_map).pos]
+        return len(queries)
 
 
 def air_cargo_p1() -> AirCargoProblem:
