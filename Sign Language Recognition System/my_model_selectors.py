@@ -67,22 +67,28 @@ class SelectorBIC(ModelSelector):
     http://www2.imm.dtu.dk/courses/02433/doc/ch6_slides.pdf
     Bayesian information criteria: BIC = -2 * logL + p * logN
     """
-
+    
     def select(self):
-        """ select the best model for self.this_word based on
-        BIC score for n between self.min_n_components and self.max_n_components
-
-        :return: GaussianHMM object
-        """
-        warnings.filterwarnings("ignore", category=DeprecationWarning)
-
-        # TODO implement model selection based on BIC scores
-        raise NotImplementedError
+        N, P = self.X.shape
+        log_N = np.log(N)
+        
+        min_bic, best_hmm = float("inf"), None
+        for num_states in range(self.min_n_components, self.max_n_components + 1):
+            try:
+                hmm_model = self.base_model(num_states)
+                hmm_model = hmm_model.fit(self.X, self.lengths)
+                log_loss = hmm_model.score(self.X, self.lengths)
+                bic = -2 * log_loss + P * log_N
+                if (bic < min_bic):
+                    min_bic = bic
+                    best_hmm = hmm_model
+            except:
+                break
+        return best_hmm
 
 
 class SelectorDIC(ModelSelector):
     ''' select best model based on Discriminative Information Criterion
-
     Biem, Alain. "A model selection criterion for classification: Application to hmm topology optimization."
     Document Analysis and Recognition, 2003. Proceedings. Seventh International Conference on. IEEE, 2003.
     http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.58.6208&rep=rep1&type=pdf
@@ -91,18 +97,48 @@ class SelectorDIC(ModelSelector):
 
     def select(self):
         warnings.filterwarnings("ignore", category=DeprecationWarning)
-
-        # TODO implement model selection based on DIC scores
-        raise NotImplementedError
+        other_words = set(self.words.keys())
+        other_words.discard(self.this_word)
+        
+        max_dic, best_hmm = float("-inf"), None
+        for num_states in range(self.min_n_components, self.max_n_components):
+            try:
+                model = self.base_model(num_states)
+                model = model.fit(self.X, self.lengths)
+                log_loss = model.score(self.X, self.lengths)
+                log_anti_loss = np.average([model.score(*self.hwords[w]) for w in other_words])
+                dic = log_loss - log_anti_loss
+                if dic > max_dic:
+                    max_dic = dic
+                    best_hmm = model
+            except:
+                break
+    
+        return best_hmm
 
 
 class SelectorCV(ModelSelector):
-    ''' select best model based on average log Likelihood of cross-validation folds
-
-    '''
-
+    ''' select best model based on average log Likelihood of cross-validation folds'''
+    
     def select(self):
         warnings.filterwarnings("ignore", category=DeprecationWarning)
+        n_splits = min(3, len(self.sequences))
+        split_method = KFold(n_splits=n_splits)
+        best_logL, best_states = float("-inf"), None
+        for num_states in range(self.min_n_components, self.max_n_components+1):
+            hs_logL = 0
+            for cv_train_idx, cv_test_idx in split_method.split(self.sequences):
+                try:
+                    X_train, lengths_train = combine_sequences(cv_train_idx, self.sequences)
+                    X_test, lengths_test = combine_sequences(cv_test_idx, self.sequences)
+                    model = self.base_model(num_states)
+                    model = model.fit(X_train, lengths_train)
+                    logL = model.score(X_test, lengths_test)
+                    hs_logL += logL
+                except:
+                    break
 
-        # TODO implement model selection using CV
-        raise NotImplementedError
+            if hs_logL > best_logL:
+                best_logL = hs_logL
+                best_states = num_states
+        return self.base_model(best_states)
